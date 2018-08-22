@@ -42,8 +42,7 @@ func GetCredential(accessKey string) (credential Credential, err error) {
 	if iamClient == nil {
 		iamClient = circuitbreak.NewCircuitClient()
 	}
-	query.Action = "DescribeAccessKeys"
-	query.AccessKeys = append(query.AccessKeys, accessKey)
+	query.AccessKey = accessKey
 
 	b, err := json.Marshal(query)
 	if err != nil {
@@ -88,20 +87,17 @@ func GetCredential(accessKey string) (credential Credential, err error) {
 	slog.Println(10, "request:", string(b))
 	slog.Println(10, "response:", string(body))
 
-	var queryRetAll QueryRespAll
-	err = json.Unmarshal(body, &queryRetAll)
+	var queryResp QueryResp
+	err = json.Unmarshal(body, &queryResp)
 	if err != nil {
 		return credential, errors.New("Decode QueryHistoryResp failed")
 	}
-	if queryRetAll.RetCode != 0 {
-		return credential, errors.New("Query to IAM failed as RetCode != 0")
-	}
 
-	if queryRetAll.Data.Total > 0 {
-		credential.UserId = queryRetAll.Data.AccessKeySet[0].ProjectId
-		credential.DisplayName = queryRetAll.Data.AccessKeySet[0].Name
-		credential.AccessKeyID = queryRetAll.Data.AccessKeySet[0].AccessKey
-		credential.SecretAccessKey = queryRetAll.Data.AccessKeySet[0].AccessSecret
+	if len(queryResp.AccessKeySet) > 0 {
+		credential.UserId = queryResp.AccessKeySet[0].ProjectId
+		credential.DisplayName = queryResp.AccessKeySet[0].ProjectName
+		credential.AccessKeyID = queryResp.AccessKeySet[0].AccessKey
+		credential.SecretAccessKey = queryResp.AccessKeySet[0].AccessSecret
 		iamCache.set(accessKey, credential)
 		return credential, nil
 	} else {
